@@ -4,6 +4,7 @@ Group Project at PWr for the course, Computer Modelling and Simulation of Stocha
 python=3.12.9
 
 requirements.txt is based on arm64_osx
+
 --requirements.txt is based on Windows/ Linux environment--
 
 ## Step 0: Data Pre-processing and EDA
