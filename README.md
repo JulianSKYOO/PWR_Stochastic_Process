@@ -5,7 +5,7 @@ python=3.12.9
 
 requirements.txt is based on arm64_osx
 
---requirements.txt is based on Windows/ Linux environment--
+<del>requirements.txt is based on Windows/ Linux environment<\del>
 
 ## Step 0: Data Pre-processing and EDA
 
