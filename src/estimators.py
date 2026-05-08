@@ -90,38 +90,57 @@ def mcculloch_estimator(x):
 
     return alpha, beta, sigma, mu
 
-def koutrouvelis_estimator(x, n_points=20):
+def koutrouvelis_estimator(x, n_points=20, max_iter=50, tol=1e-2):
     x = np.asarray(x)
-    
-    # grid of t values
     t = np.linspace(0.1, 1.0, n_points)
-    
-    # empirical CF
-    phi = np.array([np.mean(np.exp(1j*ti *x)) for ti in t])
-    
-    y = np.log(-np.log(np.abs(phi)))
+
+    phi = np.array([np.mean(np.exp(1j * ti * x)) for ti in t])
+
+    # --- pierwsza regresja: alpha, sigma ---
+    y = np.log(-np.log(np.abs(phi) ** 2))
     X = np.vstack([np.log(t), np.ones_like(t)]).T
-    
-    slope, intercept =lstsq(X, y, rcond=None)[0]
-    
-    alpha = slope
-    sigma = np.exp(intercept / alpha)
-    
-    phase = np.unwrap(np.angle(phi))
-    
-    y2 = phase
-    X2 = np.vstack([t, t * np.log(t)]).T
-    
-    coeffs = lstsq(X2, y2, rcond=None)[0]
-    
-    mu = coeffs[0]
-    beta = coeffs[1]/ (sigma**alpha)
-    
-    beta = np.clip(beta, -1, 1)
-    
+    slope, intercept = lstsq(X, y, rcond=None)[0]
+
+    alpha = np.clip(slope, 0.1, 2.0)
+    sigma = np.exp((intercept - np.log(2)) / alpha)
+
+    for _ in range(max_iter):
+        alpha_prev, sigma_prev = alpha, sigma
+
+        # --- druga regresja: mu, beta ---
+        phase = np.unwrap(np.angle(phi))
+
+        if np.abs(alpha - 1.0) < tol:
+            # parametryzacja dla α ≈ 1: arg(φ(t)) = μt + β σ (2/π) t·log(t)
+            X2 = np.vstack([t, t * np.log(t)]).T
+            coeffs = lstsq(X2, phase, rcond=None)[0]
+            mu = coeffs[0]
+            beta = coeffs[1] / (sigma * (2 / np.pi))
+        elif np.abs(alpha - 2.0) < tol:
+            # α ≈ 2: beta nieidentyfikowalna
+            mu = lstsq(t.reshape(-1, 1), phase, rcond=None)[0][0]
+            beta = 0.0
+        else:
+            # standardowa parametryzacja: arg(φ(t)) = μt + β σ^α tan(πα/2) t^α
+            X2 = np.vstack([t, t ** alpha]).T
+            coeffs = lstsq(X2, phase, rcond=None)[0]
+            mu = coeffs[0]
+            beta = coeffs[1] / (sigma ** alpha * np.tan(np.pi * alpha / 2))
+
+        beta = np.clip(beta, -1, 1)
+
+        # --- ponowna pierwsza regresja ---
+        slope, intercept = lstsq(X, y, rcond=None)[0]
+        alpha = np.clip(slope, 0.1, 2.0)
+        sigma = np.exp((intercept - np.log(2)) / alpha)
+
+        #kończenie iteracji przy małej zmianie parametrów, zakomentowałem bo czas wykonani i tak jest bardzo krótki
+        #if abs(alpha - alpha_prev) < tol and abs(sigma - sigma_prev) < tol:
+        #    break
+
     return alpha, beta, sigma, mu
 
-
 def scipy_mle(x):
-    alpha, beta, mu, sigma = levy_stable.fit(x, method = 'mle', parameterization='S0')
+    levy_stable.parameterization = 'S0'
+    alpha, beta, mu, sigma = levy_stable.fit(x, method='mle')
     return alpha, beta, sigma, mu
