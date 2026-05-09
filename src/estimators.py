@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-from scipy.stats import levy_stable
+from scipy.stats import levy_stable, lognorm, gamma
+from scipy.optimize import minimize
 from numpy.linalg import lstsq
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
@@ -144,3 +145,76 @@ def scipy_mle(x):
     levy_stable.parameterization = 'S0'
     alpha, beta, mu, sigma = levy_stable.fit(x, method='mle')
     return alpha, beta, sigma, mu
+
+def fit_gamma(x):
+    a, loc, scale = gamma.fit(x, floc=0)
+    return {
+        "alpha": a,
+        "loc": loc,
+        "scale": scale
+    }
+
+
+def fit_lognorm(x):
+    s, loc, scale = lognorm.fit(x, floc=0)
+
+    return {
+        "sigma": s,
+        "mu": np.log(scale),
+        "loc": loc
+    }
+
+
+def trunc_pareto_negloglik(params, x, xmin, xmax):
+    alpha = params[0]
+
+    if alpha <= 0:
+        return np.inf
+
+    C = (alpha * xmin**alpha) / (1 - (xmin / xmax)**alpha)
+
+    pdf = C * x**(-alpha - 1)
+
+    if np.any(pdf <= 0):
+        return np.inf
+
+    return -np.sum(np.log(pdf))
+
+
+def fit_trunc_pareto(x, xmin=None, xmax=None):
+    x = np.asarray(x)
+
+    if xmin is None:
+        xmin = np.min(x)
+
+    if xmax is None:
+        xmax = np.max(x)
+
+    res = minimize(
+        trunc_pareto_negloglik,
+        x0=[1.5],
+        args=(x, xmin, xmax),
+        method="L-BFGS-B",
+        bounds=[(1e-6, None)]
+    )
+
+    alpha = res.x[0]
+
+    return {
+        "alpha": alpha,
+        "xmin": xmin,
+        "xmax": xmax
+    }
+
+def fit_dist(x, dist_name):
+    if dist_name == "gamma":
+        return fit_gamma(x)
+
+    elif dist_name == "lognorm":
+        return fit_lognorm(x)
+
+    elif dist_name == "trunc_pareto":
+        return fit_trunc_pareto(x)
+
+    else:
+        raise ValueError(f"Unknown distribution: {dist_name}")
