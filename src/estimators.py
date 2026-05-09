@@ -52,6 +52,7 @@ beta_table = np.array([
     [0.0, 0.056, 0.112, 0.167, 0.285, 0.428, 1.274],
 ])
 
+
 #interpolation between
 alpha_interp = RegularGridInterpolator(
     (nu_alpha_grid, nu_beta_grid),
