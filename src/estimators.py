@@ -87,7 +87,7 @@ def mcculloch_estimator(x):
     beta_raw = beta_interp([[nu_a, nu_b_abs]])[0]
     beta = np.clip(np.sign(nu_b) * beta_raw, -1, 1)
 
-    sigma = (q75 - q25) / 2
+    sigma = (q75 - q25) / 2 #simplified approach - 2 instead of phi3(alpha, beta), not valid for all alpha, beta
     mu = q50
 
     return alpha, beta, sigma, mu
